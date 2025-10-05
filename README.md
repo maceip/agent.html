@@ -1,3 +1,5 @@
+<img width="94" height="80" alt="logoaf" src="https://github.com/user-attachments/assets/8206c2a2-3149-4a63-888a-1d4d2c9f13b7" />
+
 # agent.html
 
 agent.html is a format for packaging AI agents as single, self-contained HTML files. Share agents as easily as sharing a document—no backend, no installation, no dependencies.
