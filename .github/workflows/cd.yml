@@ -1,0 +1,151 @@
+name: CD
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build
+        run: bun run build
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  build-and-deploy-pages:
+    runs-on: ubuntu-latest
+    needs: publish-npm
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build package
+        run: bun run build
+
+      - name: Build examples
+        run: |
+          bun run example:vanilla
+          bun run example:huggingface
+          bun run example:litert
+          bun run example:langgraph
+          bun run example:wasi
+
+      - name: Create GitHub Pages site
+        run: |
+          mkdir -p public
+          cp -r examples public/
+          cp README.md public/
+          cat > public/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>agent.html - Self-contained AI Agents</title>
+            <style>
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+                line-height: 1.6;
+              }
+              h1 { color: #2563eb; }
+              .examples { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
+              .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1.5rem; background: #f9fafb; }
+              .card h3 { margin-top: 0; color: #1f2937; }
+              .card a { display: inline-block; margin-top: 1rem; color: #2563eb; text-decoration: none; font-weight: 500; }
+              .card a:hover { text-decoration: underline; }
+            </style>
+          </head>
+          <body>
+            <h1>agent.html</h1>
+            <p>Self-contained AI agents as single HTML files. No backend, no installation, no dependencies.</p>
+
+            <h2>Examples</h2>
+            <div class="examples">
+              <div class="card">
+                <h3>Vanilla JavaScript</h3>
+                <p>Pure JavaScript agent with no framework dependencies</p>
+                <a href="examples/vanilla/simple-agent.html">Open Demo →</a>
+              </div>
+
+              <div class="card">
+                <h3>HuggingFace</h3>
+                <p>Agent using HuggingFace Inference API</p>
+                <a href="examples/huggingface/simple-agent.html">Open Demo →</a>
+              </div>
+
+              <div class="card">
+                <h3>LiterT</h3>
+                <p>Agent with LiterT loaded from CDN</p>
+                <a href="examples/litert/simple-agent.html">Open Demo →</a>
+              </div>
+
+              <div class="card">
+                <h3>LangGraph</h3>
+                <p>Stateful agent with action routing</p>
+                <a href="examples/langchain/langgraph-agent.html">Open Demo →</a>
+              </div>
+
+              <div class="card">
+                <h3>WASI (Advanced)</h3>
+                <p>Agent with embedded WebAssembly module</p>
+                <a href="examples/advanced/wasi/wasi-agent.html">Open Demo →</a>
+              </div>
+            </div>
+
+            <h2>Documentation</h2>
+            <p><a href="https://github.com/yourusername/agent.html">View on GitHub →</a></p>
+          </body>
+          </html>
+          EOF
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'public'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
