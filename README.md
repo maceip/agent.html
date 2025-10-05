@@ -13,7 +13,7 @@ Traditional AI agents require complex deployment infrastructure. agent.html pack
 - Portable: Share via email, download, or file system
 - Secure: Built-in integrity checking and permission system
 - Universal: Works in any modern browser
-- Framework agnostic: Convert from LangChain, LiterT, vanilla JS, or WASM
+- Framework agnostic: Convert from LangChain, TensorFlow Lite RT, vanilla JS, or WASM (incl wasi)
 
 ## Quick Start
 
