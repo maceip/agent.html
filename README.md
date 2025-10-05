@@ -157,7 +157,7 @@ bun run example:vanilla
 # LangGraph stateful agent
 bun run example:langgraph
 
-# LiterT with CDN loading
+# Google Tensorflow Lite with CDN loading
 bun run example:litert
 
 # HuggingFace Inference API
@@ -177,7 +177,7 @@ Comprehensive examples for different frameworks:
 
 **[LangGraph](./examples/langchain/)** - Convert stateful LangGraph agents with action routing
 
-**[LiterT](./examples/litert/)** - Load LiterT from CDN for streaming and generation
+**[Tensorflow Lite RT](./examples/litert/)** - Load LiterT from CDN for streaming and generation
 
 **[HuggingFace](./examples/huggingface/)** - Use HuggingFace Inference API with multiple models
 
