@@ -1,6 +1,6 @@
 {
   "name": "agent-file",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Self-contained HTML agent format with built-in security",
   "type": "module",
   "main": "./dist/index.js",
