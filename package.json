@@ -23,7 +23,9 @@
     "example:langgraph": "bun run examples/langchain/langgraph-agent.ts",
     "example:litert": "bun run examples/litert/simple-agent.ts",
     "example:huggingface": "bun run examples/huggingface/simple-agent.ts",
-    "example:wasi": "bun run examples/advanced/wasi/wasi-agent.ts"
+    "example:wasi": "bun run examples/advanced/wasi/wasi-agent.ts",
+    "example:mcp": "bun run examples/mcp/mcp-agent.ts",
+    "mcp:server": "bun run examples/mcp/test-mcp-server.ts"
   },
   "keywords": [
     "ai",
@@ -33,7 +35,9 @@
     "portable",
     "security",
     "langchain",
-    "langgraph"
+    "langgraph",
+    "mcp",
+    "model-context-protocol"
   ],
   "author": "",
   "license": "MIT",

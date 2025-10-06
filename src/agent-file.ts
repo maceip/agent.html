@@ -4,6 +4,17 @@
  */
 
 import { generateHashes } from './security'
+import { generateMCPClientCode } from './mcp-client-inline'
+
+export interface MCPServerConfig {
+  name: string
+  url: string
+  description?: string
+  auth?: {
+    type: 'none' | 'bearer' | 'oauth'
+    token?: string
+  }
+}
 
 export interface AgentManifest {
   id: string
@@ -24,6 +35,11 @@ export interface AgentManifest {
     memory?: boolean
     code?: boolean
     browser?: boolean
+  }
+
+  // MCP Integration
+  mcp?: {
+    servers?: MCPServerConfig[]
   }
 }
 
@@ -209,13 +225,28 @@ export class AgentFile {
     // Permission checking
     function checkPermission(action, target) {
       const permissions = ${JSON.stringify(manifest.permissions || {})};
+      const mcpServers = ${JSON.stringify(manifest.mcp?.servers || [])};
 
       if (action === 'fetch' && target) {
         if (!permissions.network) return false;
         const url = new URL(target);
-        return permissions.network.some(d =>
+
+        // Check if URL matches allowed network permissions
+        const isAllowed = permissions.network.some(d =>
           url.hostname === d || url.hostname.endsWith('.' + d) || d === '*'
         );
+
+        // Also allow MCP server URLs
+        const isMCPServer = mcpServers.some(server => {
+          try {
+            const serverUrl = new URL(server.url);
+            return serverUrl.hostname === url.hostname;
+          } catch {
+            return false;
+          }
+        });
+
+        return isAllowed || isMCPServer;
       }
 
       if (action === 'storage') return permissions.storage === true;
@@ -256,12 +287,42 @@ export class AgentFile {
           <html>
           <body>
             <script>
+              ${manifest.mcp?.servers ? generateMCPClientCode() : ''}
+
               \${code}
+
+              ${
+                manifest.mcp?.servers
+                  ? `
+              // Initialize MCP Manager
+              const mcpManager = new MCPManager();
+              let mcpInitialized = false;
+
+              async function initializeMCP() {
+                const mcpServers = ${JSON.stringify(manifest.mcp.servers)};
+                for (const server of mcpServers) {
+                  try {
+                    await mcpManager.addServer(
+                      server.name,
+                      server.url,
+                      server.auth?.token
+                    );
+                  } catch (error) {
+                    console.error('Failed to connect to MCP server ' + server.name + ':', error);
+                  }
+                }
+                mcpInitialized = true;
+              }
+              `
+                  : ''
+              }
 
               window.addEventListener('message', async (e) => {
                 if (e.data.method === 'run' && window.Agent) {
                   try {
+                    ${manifest.mcp?.servers ? 'if (!mcpInitialized) await initializeMCP();' : ''}
                     const agent = new Agent(\${JSON.stringify(manifest)});
+                    ${manifest.mcp?.servers ? 'agent.mcp = mcpManager;' : ''}
                     const result = await agent.run(e.data.input);
                     e.source.postMessage({ id: e.data.id, result }, '*');
                   } catch (error) {
