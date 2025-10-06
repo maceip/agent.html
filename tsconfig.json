@@ -15,6 +15,6 @@
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "tests", "examples", "src/**/*.test.ts"]
+  "include": ["src/**/*", "node_modules/@types/bun/index.d.ts"],
+  "exclude": ["node_modules", "dist", "tests", "examples", "src/**/*.test.ts", "src/cli.ts"]
 }

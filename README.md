@@ -4,6 +4,14 @@
 
 agent.html is a format for packaging AI agents as single, self-contained HTML files. Share agents as easily as sharing a document—no backend, no installation, no dependencies.
 
+**Get started in 10 seconds:**
+
+```bash
+bun install agent-file
+agent-html quick
+# Open agent.html in your browser - done!
+```
+
 ## Why agent.html?
 
 Traditional AI agents require complex deployment infrastructure. agent.html packages everything—manifest, code, memory, and UI—into a single HTML file that runs directly in any modern browser.
@@ -14,6 +22,7 @@ Traditional AI agents require complex deployment infrastructure. agent.html pack
 - Secure: Built-in integrity checking and permission system
 - Universal: Works in any modern browser
 - Framework agnostic: Convert from LangChain, TensorFlow Lite RT, vanilla JS, or WASM (incl wasi)
+- MCP integration: Built-in Model Context Protocol client for tool calling and resource access
 
 ## Quick Start
 
@@ -23,81 +32,62 @@ Traditional AI agents require complex deployment infrastructure. agent.html pack
 bun install agent-file
 ```
 
-### Create an Agent
+### Fastest Way: One Command
+
+Create a working agent instantly:
+
+```bash
+agent-html quick
+```
+
+This creates `agent.html` - open it in your browser and you're done! Set your OpenAI API key in the browser console:
+
+```javascript
+await window.agent.setApiKey("sk-...")
+await window.agent.run("Hello!")
+```
+
+### Customization Path
+
+Create template files to customize:
+
+```bash
+agent-html init
+# Edit manifest.json and agent.js to your needs
+agent-html generate --manifest manifest.json --code agent.js
+```
+
+### Programmatic Usage
 
 ```typescript
 import { AgentFile } from 'agent-file'
 
-const agentCode = `
-class Agent {
-  constructor(manifest) {
-    this.manifest = manifest;
-    this.apiKey = null;
-  }
-
-  async run(input) {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + this.apiKey
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: 'You are a helpful assistant.' },
-          { role: 'user', content: input }
-        ]
-      })
-    });
-
-    const data = await response.json();
-    return data.choices[0].message.content;
-  }
-
-  setApiKey(key) {
-    this.apiKey = key;
-  }
-}
-`
-
-const agentHTML = await AgentFile.create({
+const html = await AgentFile.create({
   manifest: {
     id: 'my-agent',
     name: 'My AI Agent',
     version: '1.0.0',
-
     permissions: {
       network: ['api.openai.com'],
       storage: false,
       code: false
-    },
-
-    capabilities: {
-      memory: false,
-      code: false
     }
   },
-
-  code: agentCode,
+  code: `
+    class Agent {
+      async run(input) {
+        // Your agent logic here
+        return result
+      }
+    }
+  `,
   ui: 'full'
 })
 
-await Bun.write('my-agent.html', agentHTML)
+await Bun.write('my-agent.html', html)
 ```
 
-### Use the Agent
-
-Open `my-agent.html` in a browser:
-
-```javascript
-// Set API key
-await window.agent.setApiKey('sk-proj-...')
-
-// Run queries
-const result = await window.agent.run('Hello!')
-console.log(result)
-```
+Open `my-agent.html` in a browser and interact via `window.agent.run(input)`.
 
 ## How It Works
 
@@ -146,107 +136,150 @@ permissions: {
 }
 ```
 
-## Examples
+## Model Context Protocol (MCP)
 
-Run any example to generate a working agent.html file:
+Built-in MCP client for connecting to [Model Context Protocol](https://modelcontextprotocol.io) servers. Access tools and resources from MCP servers directly in your browser-based agents.
 
-```bash
-# Pure JavaScript agent
-bun run example:vanilla
+```typescript
+import { MCPClient, MCPManager } from 'agent-file'
 
-# LangGraph stateful agent
-bun run example:langgraph
+// Use in agents via manifest
+const manifest = {
+  mcp: {
+    servers: [{ name: 'filesystem', url: 'http://localhost:3000/mcp' }]
+  }
+}
 
-# Google Tensorflow Lite with CDN loading
-bun run example:litert
+// Access in agent code
+async run(input) {
+  const result = await this.mcp.callTool('read_file', { path: '/etc/hosts' })
+  return result
+}
 
-# HuggingFace Inference API
-bun run example:huggingface
-
-# WebAssembly embedding
-bun run example:wasi
+// Or use directly
+const client = new MCPClient('http://localhost:3000/mcp')
+await client.connect()
+const result = await client.callTool('read_file', { path: '/etc/hosts' })
 ```
 
-Each example generates a `.html` file in its directory that you can open directly in a browser.
+See [MCP examples](./examples/README.md#model-context-protocol-mcp) for detailed integration guide.
 
-## Examples Directory
+## CLI Reference
 
-Comprehensive examples for different frameworks:
+### Quick Start Commands
 
-**[Vanilla JavaScript](./examples/vanilla/)** - Pure JS agents with no framework dependencies
+**Create an agent instantly** (no files needed):
 
-**[LangGraph](./examples/langchain/)** - Convert stateful LangGraph agents with action routing
+```bash
+agent-html quick [--name "Agent Name"] [--output agent.html]
+```
 
-**[Tensorflow Lite RT](./examples/litert/)** - Load LiterT from CDN for streaming and generation
+**Create template files** to customize:
 
-**[HuggingFace](./examples/huggingface/)** - Use HuggingFace Inference API with multiple models
+```bash
+agent-html init
+```
 
-**[WASI (Advanced)](./examples/advanced/wasi/)** - Embed WebAssembly modules for high-performance computation
+This creates `manifest.json` and `agent.js` that you can edit.
+
+### Advanced Commands
+
+**Generate** from custom files:
+
+```bash
+agent-html generate --manifest manifest.json --code agent.js [options]
+
+Options:
+  --output <file>      Output path (default: agent.html)
+  --ui <type>          UI type: full, minimal, none (default: full)
+  --styles <file>      Custom CSS styles
+  --memory <file>      Initial memory/state JSON
+```
+
+**Validate** an agent file:
+
+```bash
+agent-html validate agent.html [--verbose]
+```
+
+**Modify** an existing agent:
+
+```bash
+agent-html modify agent.html --code new-code.js [--output modified.html]
+```
+
+**Publish** to registry (coming soon):
+
+```bash
+agent-html publish agent.html
+```
+
+## Examples
+
+Examples for different frameworks and use cases. Each generates a self-contained `.html` file you can open in a browser.
+
+```bash
+bun run example:vanilla      # Pure JavaScript
+bun run example:langgraph    # LangGraph stateful agents
+bun run example:litert       # TensorFlow Lite RT
+bun run example:huggingface  # HuggingFace Inference API
+bun run example:mcp          # Model Context Protocol
+bun run example:wasi         # WebAssembly (WASI)
+```
+
+**[See detailed examples guide →](./examples/README.md)**
+
+- **[Vanilla](./examples/vanilla/)** - Pure JS, no dependencies
+- **[LangGraph](./examples/langchain/)** - Stateful agent conversion
+- **[TensorFlow Lite RT](./examples/litert/)** - CDN model loading
+- **[HuggingFace](./examples/huggingface/)** - Inference API integration
+- **[MCP](./examples/mcp/)** - Tool calling and resource access
+- **[WASI](./examples/advanced/wasi/)** - WebAssembly embedding
 
 ## API Reference
 
-### AgentFile.create(options)
+Full TypeScript definitions available in [`dist/index.d.ts`](./dist/index.d.ts).
 
-Create a new agent.html document.
-
-```typescript
-interface AgentFileOptions {
-  manifest: {
-    id: string
-    name: string
-    version: string
-    description?: string
-    permissions: {
-      network: string[]
-      storage: boolean
-      code: boolean
-    }
-    capabilities: {
-      memory: boolean
-      code: boolean
-    }
-  }
-  code: string
-  memory?: string
-  styles?: string
-  ui?: 'minimal' | 'full' | 'none'
-}
-
-const html: string = await AgentFile.create(options)
-```
-
-### AgentFile.extract(html)
-
-Extract components from an agent.html document.
+### Core API
 
 ```typescript
-const components = AgentFile.extract(htmlString)
+import { AgentFile } from 'agent-file'
 
-// Returns:
-{
-  manifest: object,
-  code: string,
-  memory: string | null,
-  integrity: {
-    manifestHash: string,
-    codeHash: string
-  }
-}
+// Create agent HTML
+const html = await AgentFile.create({
+  manifest: { id, name, version, permissions, capabilities },
+  code: 'class Agent { ... }',
+  ui: 'full' | 'minimal' | 'none'
+})
+
+// Extract components
+const { manifest, code, memory, integrity } = AgentFile.extract(html)
 ```
 
-### Security Utilities
+### MCP Client
+
+```typescript
+import { MCPClient, MCPManager } from 'agent-file'
+
+// Single server
+const client = new MCPClient(url, authToken?)
+await client.connect()
+await client.callTool(name, args)
+
+// Multiple servers
+const manager = new MCPManager()
+await manager.addServer(name, url, authToken?)
+await manager.callTool(toolName, args)
+```
+
+### Security
 
 ```typescript
 import { generateHashes, verifyHashes, checkPermission } from 'agent-file'
 
-// Generate integrity hashes
-const hashes = await generateHashes(manifestJSON, codeString)
-
-// Verify integrity
-const isValid = await verifyHashes(manifestJSON, codeString, hashes)
-
-// Check permissions
-const allowed = checkPermission(permissions, 'fetch', 'https://api.openai.com')
+const hashes = await generateHashes(manifest, code)
+const valid = await verifyHashes(manifest, code, hashes)
+const allowed = checkPermission(permissions, 'fetch', url)
 ```
 
 ## Agent Class Interface
@@ -273,59 +306,36 @@ class Agent {
 }
 ```
 
-## Use Cases
-
-**AI Agent Marketplace** - Distribute agents as downloadable HTML files
-
-**Educational Tools** - Package AI tutorials as interactive HTML files with no setup required
-
-**Internal Tools** - Create company-specific AI assistants with single-file deployment
-
-**Prototyping** - Share agent prototypes via email without hosting infrastructure
-
-**Embedded Agents** - Integrate agents into existing platforms programmatically
-
 ## Development
-
-### Build
 
 ```bash
 bun install
-bun run build
+bun run build         # Compile TypeScript
+bun test              # Run tests
+bun run mcp:server    # Start MCP test server
 ```
 
-### Run Examples
-
-```bash
-bun run example:vanilla
-bun run example:langgraph
-bun run example:litert
-bun run example:huggingface
-bun run example:wasi
-```
-
-### Test
-
-```bash
-bun test
-```
+See [examples/](./examples/README.md) for running example agents.
 
 ## Project Structure
 
 ```
 agent.html/
 ├── src/
-│   ├── agent-file.ts      # Main AgentFile class
-│   ├── security.ts        # Security utilities
-│   └── index.ts           # Public exports
+│   ├── agent-file.ts         # Main AgentFile class
+│   ├── security.ts           # Security utilities
+│   ├── mcp-client.ts         # MCP client for browser
+│   ├── mcp-client-inline.ts  # Inline MCP client for agents
+│   └── index.ts              # Public exports
 ├── examples/
-│   ├── vanilla/           # Pure JavaScript examples
-│   ├── langchain/         # LangGraph examples
-│   ├── litert/            # LiterT examples
-│   ├── huggingface/       # HuggingFace examples
+│   ├── vanilla/              # Pure JavaScript examples
+│   ├── langchain/            # LangGraph examples
+│   ├── litert/               # LiterT examples
+│   ├── huggingface/          # HuggingFace examples
+│   ├── mcp/                  # MCP integration examples
 │   └── advanced/
-│       └── wasi/          # WebAssembly examples
-└── dist/                  # Built files
+│       └── wasi/             # WebAssembly examples
+└── dist/                     # Built files
 ```
 
 ## Browser Support
@@ -364,8 +374,5 @@ MIT License - see LICENSE file
 
 ## Learn More
 
-- [Vanilla Examples](./examples/vanilla/) - Pure JavaScript patterns
-- [LangGraph Examples](./examples/langchain/) - Stateful agent conversion
-- [LiterT Examples](./examples/litert/) - CDN loading patterns
-- [HuggingFace Examples](./examples/huggingface/) - HF Inference API integration
-- [WASI Examples](./examples/advanced/wasi/) - WebAssembly embedding
+- [Examples Guide](./examples/README.md) - Comprehensive examples and patterns
+- [Model Context Protocol](https://modelcontextprotocol.io) - MCP specification
